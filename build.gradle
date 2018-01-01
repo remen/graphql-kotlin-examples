@@ -22,7 +22,10 @@ buildscript {
 
 plugins {
     id "com.moowork.node" version "1.2.0"
+    id "application"
 }
+
+mainClassName="io.github.remen.graphql.AppKt"
 
 node {
     nodeModulesDir = file("${project.projectDir}/src/main/resources/graphiql")
