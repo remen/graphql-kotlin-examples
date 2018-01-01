@@ -1,0 +1,23 @@
+{
+  "name": "graphql-kotlin-examples",
+  "version": "1.0.0",
+  "description": "Javascript dependencies for the interactive documentation (graphiql)",
+  "main": "index.js",
+  "dependencies": {
+    "graphiql": "^0.11.11"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/remen/graphql-kotlin-examples.git"
+  },
+  "author": "Petter Remen <petter.remen@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/remen/graphql-kotlin-examples/issues"
+  },
+  "homepage": "https://github.com/remen/graphql-kotlin-examples#readme"
+}
