@@ -1,0 +1,13 @@
+type Query {
+    document(id: ID): Document
+    search(query: SearchQuery!): [Document!]!
+}
+
+type Document {
+    id: String!
+    url: String
+}
+
+input SearchQuery {
+    text: String!
+}

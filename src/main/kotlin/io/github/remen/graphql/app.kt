@@ -1,9 +1,13 @@
 package io.github.remen.graphql
 
+import com.coxautodev.graphql.tools.SchemaParser
 import com.fasterxml.jackson.databind.SerializationFeature
+import com.jakewharton.retrofit2.adapter.kotlin.coroutines.experimental.CoroutineCallAdapterFactory
+import graphql.ExecutionInput
 import graphql.GraphQL
-import io.github.remen.graphqlkotlin.createGraphQLSchema
-import io.github.remen.graphqlkotlin.executeSuspend
+import io.github.remen.graphql.fairhair.DocumentService
+import io.github.remen.graphql.fairhair.SearchService
+import io.github.remen.graphql.graphql.Query
 import io.ktor.application.call
 import io.ktor.application.install
 import io.ktor.content.resources
@@ -19,17 +23,50 @@ import io.ktor.routing.post
 import io.ktor.routing.routing
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
+import kotlinx.coroutines.experimental.future.await
+import okhttp3.OkHttpClient
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
+import retrofit2.Retrofit
+import retrofit2.adapter.java8.Java8CallAdapterFactory
+import retrofit2.converter.jackson.JacksonConverterFactory
 
-
-data class Person(
-    val name: String,
-    val age: Int,
-    private val bestFriend: Person?
-)
+val LOGGER: Logger = LoggerFactory.getLogger("AppKt")
 
 fun main(args: Array<String>) {
-    val schema = createGraphQLSchema(Person::class)
-    val graphQL = GraphQL.newGraphQL(schema).build()
+    val client = OkHttpClient.Builder()
+        .addInterceptor { chain ->
+            LOGGER.info("{} {}", chain.request().method(), chain.request().url())
+            chain.proceed(chain.request())
+        }
+        .build()
+
+    val retrofit = Retrofit.Builder()
+        .addConverterFactory(JacksonConverterFactory.create())
+        .addCallAdapterFactory(CoroutineCallAdapterFactory())
+        .client(client)
+        .build()
+
+    val documentService = retrofit.newBuilder()
+        .baseUrl("https://document-service-nrstaging.meltwater.net/")
+        .build()
+        .create(DocumentService::class.java)
+
+    val searchService = retrofit.newBuilder()
+        .baseUrl("https://search-service-nrstaging.meltwater.net/")
+        .client(client)
+        .build()
+        .create(SearchService::class.java)
+
+    val graphQLSchema = SchemaParser.newParser()
+        .file("graphql/schema.graphqls")
+        .resolvers(Query(documentService, searchService))
+        .build()
+        .makeExecutableSchema()
+
+    val graphQL = GraphQL
+        .newGraphQL(graphQLSchema)
+        .build()
 
     val server = embeddedServer(Netty, 8080) {
         install(Compression)
@@ -47,14 +84,13 @@ fun main(args: Array<String>) {
             }
             post("/graphql") {
                 val request = call.receive<GraphQLRequest>()
-                val person = Person("John Doe", 32, Person("Jane Doe", 33, null))
-                val response = graphQL.executeSuspend(
-                    query = request.query,
-                    operationName = request.operationName,
-                    context = null,
-                    root = person,
-                    variables = request.variables
-                ).toSpecification()
+                val response = graphQL.executeAsync(
+                    ExecutionInput.newExecutionInput()
+                        .query(request.query)
+                        .operationName(request.operationName)
+                        .variables(request.variables)
+                ).await().toSpecification()
+
                 call.respond(response)
             }
         }
